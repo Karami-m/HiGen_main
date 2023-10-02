@@ -11,7 +11,7 @@ Moreover, we model the output distribution of edges in the hierarchical graph wi
 This enables us to generate  community graphs with integer-valued edge weights in an autoregressive manner.
 Empirical studies demonstrate the effectiveness and scalability of our proposed generative model, achieving state-of-the-art performance in terms of graph quality across various benchmark datasets.
 
-In this implementation, the codes of [GraphGPS model](https://github.com/rampasek/GraphGPS) is addepted and used in this work.
+In this implementation, the codes of [GraphGPS model](https://github.com/rampasek/GraphGPS) are adapted and used in this work.
 I also used the structure based metrics in [GRAN](https://github.com/lrjconan/GRAN), and GNN based metrics [GGM-metrics](https://github.com/uoguelph-mlrg/GGM-metrics) for evaluation of the generated graph samples.
 
 ## Usage
@@ -31,7 +31,7 @@ Rest of  dependencies can be installed via
   ```pip install -r requirements.txt```
 
 ## Datasets
-Datasets can bownloaded and then unzipped to directpory: `data`
+Datasets should be unzipped to directory: `data`
 
 ## Hierarchical Graph Generation
 
