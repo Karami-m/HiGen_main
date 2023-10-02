@@ -1,0 +1,166 @@
+exp_name: higen
+exp_dir: exp/higen
+use_gpu: true
+device: cuda:0              # cpu
+gpus: [0]
+seed: 1234
+dataset:
+  loader_name: higen_data
+  name: Ego2
+  num_levels: 2
+  coarsening_alg:  Louvain    # SC0
+  level_startFromRoot: false
+  data_path: data/
+  node_order: BFSDC           # DFS # BFS/ BFSAC/BFSDC
+  train_ratio: .8
+  dev_ratio: .2
+  num_subgraph_batch: 50      # number of subgraphs per mini-batch
+  num_bigraph_batch: 1        # number of bipartite graphs per mini-batch
+  is_sample_subgraph: true    # set to true to sample subgraphs
+  is_overwrite_precompute: false #todo set to false after initialprecompute
+  max_num_nodes_all: 400
+  no_self_edge : last # {none, last, all}
+model:
+  name: model_higen
+  dist: mix_multinomial+PartBern # mix_multinomial, mix_Bernouli, mix_multinomial+Bern
+  postMixBP: True
+  link_attr_type: diff        # [diff, sum, cat]
+  link_cntx_type: cat72       # [none, cat, cat2, ....]
+  link_cntx_type_bp: cat32     # [none, cat, cat2, ....]
+  LP_model: b10_m12_s1        # link prediction model
+  model_selfedge: true
+  is_connected_graph: true
+  num_mix_component: 20
+  is_sym: true
+  max_num_nodes: [400]
+  hidden_dim: 64
+  embedding_dim: 64
+  num_GNN_layers: 7
+  num_GNN_prop: 1
+  layer_type_gps: CustomGatedGCN+BiasedTransformer # [CustomGatedGCN or CustomGatedGCN2]+[Transformer or Performer or BiasedTransformer]
+  layers_gps: 8
+  hidden_dim_gps: 64
+  dropout_gps: 0.
+  num_canonical_order: 1
+  dimension_reduce: true
+  has_attention: true
+  edge_weight: 1.0              #
+  edge_feat_dim: 64             # must be larger than 2(max(part_size) +1 )
+  has_edge_weight: true
+  gen_completion: NumEdges      # [NoNewEdge, NumNodes]
+  context_parent: GPSModel      # [GPSModel, GATgran]
+  context_part: aug             # [same: same as context_parent, aug: the same as augmented graph] (_indv: not sharaed across levels)
+  node_feat_types: SignNet+RWSE+Cycles
+  use_gran_feat: only           # [only, 'plus', 'none']
+  gnn_aug_part: GATgran         # [GATgran]
+  shrd_premb_part: true
+  gnn_aug_bipart: GPSModel
+  NLL_avg: adv                  # [adv, adv0]
+  to_joint_aug_bp: all          # [AR, all]
+  node_order: BFSDC
+posenc_SignNet:
+  enable: True
+  eigen:
+    laplacian_norm: none  # The normalization scheme for the graph Laplacian: 'none', 'sym', or 'rw'
+    max_freqs: 8          # Maximum number of top smallest frequencies & eigenvectors to use
+    eigvec_norm: L2       # The normalization scheme for the eigen vectors of the Laplacian
+  model: DeepSet
+  dim_pe: 8               # Size of Positional Encoding embedding
+  layers: 2               # Number of layers in PE encoder model
+  raw_norm_type: none
+  n_heads: 4              # Only used when `posenc.model: Transformer`
+  phi_out_dim: 4          # Config for SignNet-specific options
+  phi_hidden_dim: 64      # Config for SignNet-specific options
+  post_layers: 2          # Number of layers to apply in LapPE encoder post its pooling stage
+  pass_as_var: False      # In addition to appending PE to the node features, pass them also as a separate variable in the PyG graph batch object.
+posenc_LapPE:
+  enable: True
+  eigen:
+    laplacian_norm: none
+    eigvec_norm: L2
+    max_freqs: 8
+  model: DeepSet
+  dim_pe: 16
+  layers: 2
+  n_heads: 4              # Only used when `posenc.model: Transformer`
+  raw_norm_type: none
+  pass_as_var: false
+posenc_StableLapPE:
+  enable: True
+  eigen:
+    laplacian_norm: none
+    eigvec_norm: L2
+    max_freqs: 8
+  model: none             # in ['Transformer', 'DeepSet', 'none']
+  raw_norm_type: none
+  pass_as_var: false
+posenc_RWSE:
+  enable: True
+  kernel:
+    times_func: range(1,9)
+  model: Linear
+  layers: 1
+  dim_pe: 8
+  raw_norm_type: BatchNorm
+  pass_as_var: false
+posenc_Cycles:
+  enable: True
+  kernel:
+    times_func: range(3,6)
+  model: Identity
+  layers: 0
+  dim_pe: 0
+  raw_norm_type: none
+  pass_as_var: false
+gt:
+  layer_type: CustomGatedGCN+Transformer # [CustomGatedGCN or CustomGatedGCN2]+[Transformer or Performer or BiasedTransformer]
+  layers: 8
+  n_heads: 4
+  dim_hidden: 64
+  dim_inner: 64
+  dropout: 0.
+  attn_dropout: 0.5
+  layer_norm: False
+  batch_norm: True
+  act: relu
+  posenc_EquivStableLapPE_enable: False
+  layers_pre_mp: 0
+pgnn:
+  layers: 8
+  dim_hidden: 64
+  dim_inner: 64
+  dim_out: 64
+  dropout: .1
+  norm: instance
+  act: gelu
+  layers_pre_mp: 0
+train:
+  optimizer: Adam
+  lr_decay: 0.1
+  lr_decay_epoch: [100000000] # no decay
+  num_workers: 2
+  max_epoch: 3000
+  batch_size: 5
+  display_iter: 10
+  snapshot_epoch: 10
+  valid_epoch: 50
+  lr: 5.0e-4
+  wd: 0.0e-4
+  momentum: 0.9
+  shuffle: true
+  is_resume: false
+  resume_epoch: 5000
+  resume_dir: #
+  resume_model: model_snapshot_0005000.pth
+test:
+  batch_size: 1
+  num_workers: 0
+  num_test_gen: 152 # number of generated samples
+  is_vis: true
+  is_single_plot: false       # visualize `num_vis` samples in a single image
+  is_test_ER: false           # test Erdos-Renyi baseline
+  num_vis: 20
+  vis_num_row: 5
+  better_vis: true
+  test_model_dir:
+  test_model_name: model_snapshot_0001000.pth #higen_simple.pth
