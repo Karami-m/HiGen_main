@@ -37,11 +37,11 @@ Datasets should be unzipped to directory: `data`
 
 | |  | |
 | :---: | :---: | :---: |
-|<img width="200" alt="HG_L2" src="https://github.com/Karami-m/HiGen_main/assets/17184202/3e71a00e-9089-4176-886f-9b8411b6efce">  | <img width="400" alt="Comm_gen" src="https://github.com/Karami-m/HiGen_main/assets/17184202/fe12a1ef-efa1-4963-837c-26ddc55c16ce">| <img width="400" alt="BP_gen" src="https://github.com/Karami-m/HiGen_main/assets/17184202/21f73184-da85-4c31-bc8e-dd84e63db01a">|
+|<img width="200" alt="HG_L2" src="_img/HG_L2.png">  | <img width="400" alt="Comm_gen" src="_img/Comm_gen.png">| <img width="400" alt="BP_gen" src="_img/BP_gen.png">|
 
 | |  |
 | :---: | :---: |
-|<img width="400" alt="Comm_AR" src="https://github.com/Karami-m/HiGen_main/assets/17184202/6736e47e-e183-49c1-a655-878b5df91965">	| <img width="200" alt="mnbn" src="https://github.com/Karami-m/HiGen_main/assets/17184202/8257f125-5b85-4174-9520-a17c02dc88b1"> |
+|<img width="400" alt="Comm_AR" src="_img/Comm_AR.png">	| <img width="200" alt="mnbn" src="_img/mnbn.png"> |
 
 ## Cite
 To cite this [paper](https://arxiv.org/abs/2305.19337):.
