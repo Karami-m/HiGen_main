@@ -13,6 +13,7 @@ from utils.gnn_model import Node_Pre_Embedding, GATgran_module, GNN_Module
 
 EPS = 10 * np.finfo(np.float32).eps
 
+
 class Graph_Gen_MultiLevels(nn.Module):
     """To generate a hierarchichal graphs with multiple levels of hierarchy.
     """
@@ -59,7 +60,7 @@ class Graph_Gen_MultiLevels(nn.Module):
                 pre_emb_layer = self.node_pre_emb_module if config.model.get('shrd_premb_part', True) \
                     else None
                 _gnn_aug_part_mdl = GNN_Module(config, type=_gnn_aug_part.split('_')[0],
-                                               pre_emb_layer = pre_emb_layer, is_augmented=True)
+                                               pre_emb_layer=pre_emb_layer, is_augmented=True)
             if (_gnn_aug_bipart_mdl is None) or (not 'shared' in _gnn_aug_bipart):
                 _gnn_aug_bipart_mdl = GNN_Module(config, type=_gnn_aug_bipart.split('_')[0], is_augmented=True)
 
@@ -74,7 +75,6 @@ class Graph_Gen_MultiLevels(nn.Module):
             model_list.append(higen_model_)
         self.graph_gen_levels = nn.ModuleList(model_list)
 
-
     def forward(self, inp_ls):
         """
         :param inp_ls:
@@ -88,11 +88,11 @@ class Graph_Gen_MultiLevels(nn.Module):
             g_batch, bp_batch, parent_batch = inp_ls[l]
             loss_, loss_p_, loss_bp_ = self.graph_gen_levels[l].forward(g_batch, bp_batch, parent_batch)
             loss_ls += [loss_] if not (loss_ is None) else []
-            loss_pbp_ls.append("({:2f}, {:2f})".format(loss_p_.item(), loss_bp_.item()) if not (loss_ is None)
-                               else "(inf , inf )" )
+            loss_pbp_ls.append("l={}: ({:.3f}, {:.3f})".format(l, loss_p_.item(), loss_bp_.item()) if not (loss_ is None)
+                               else "(inf , inf )")
 
         if self._verbose > 1:
-            self.logger.info("(Part, Bipart) losses: {}".format(str(loss_pbp_ls)))
+            self.logger.info(f"Loss details (Part, Bipart): {loss_pbp_ls}")
         return torch.stack(loss_ls, dim=0).mean(dim=0)
 
     def generate(self, g_root_batch):
@@ -108,7 +108,8 @@ class Graph_Gen_MultiLevels(nn.Module):
             grandparent_graph_dict = None
             for l in range(self.num_levels - g_root.n_levels, self.num_levels):
                 ## for distribution 'mix_Bernouli', we might need the following num_nodes
-                g_parent.max_num_nodes_in_child_part = self.stat_HG_pmf.sample_num_nodes_parts(g_parent.num_nodes, level=l)
+                g_parent.max_num_nodes_in_child_part = self.stat_HG_pmf.sample_num_nodes_parts(g_parent.num_nodes,
+                                                                                               level=l)
 
                 g_l = self.graph_gen_levels[l].generate(g_parent)
                 g_l.parent_graph_name = g_parent.graph_name
@@ -160,7 +161,6 @@ class Conditional_Graph_Gen(nn.Module):
             self.link_pred_bp = Edge_Link_Prediction(config, level=self.level, is_part=False)
             self.add_module("link_pred_bp", self.link_pred_bp)
 
-
     def forward(self, g_batch: Batch, bp_batch: Batch, parent_batch: Batch = None):
 
         if (g_batch is None) and (bp_batch is None):
@@ -172,7 +172,8 @@ class Conditional_Graph_Gen(nn.Module):
 
         # To get augmented parts features and loss
         ## add parent node feature + PE/SE feature
-        g_batch = self.gnn_aug_part(g_batch, G_parent=parent_batch, parent_features=None, is_aug_part=True) #parent_features=['x'])
+        g_batch = self.gnn_aug_part(g_batch, G_parent=parent_batch, parent_features=None,
+                                    is_aug_part=True)  # parent_features=['x'])
         loss_adj_g = self.link_pred_part.get_loss_gen_part(g_batch, parent_graph=parent_batch)
 
         # To get augmented biparts features and loss
@@ -208,9 +209,12 @@ class Conditional_Graph_Gen(nn.Module):
         with torch.no_grad():
             # To get parent node futures
             if self.level > 0:
-                G_parent = G_parent.get_PESE_node_feat(self.config.model.node_feat_types, config=self.config) #.to(self.device)
-                G_parent.batch = torch.zeros([G_parent.num_nodes], device=G_parent.edge_index.device, dtype=G_parent.edge_index.dtype)
-                G_parent.edge_index_batch = torch.zeros([G_parent.num_edges], device=G_parent.edge_index.device, dtype=G_parent.edge_index.dtype)
+                G_parent = G_parent.get_PESE_node_feat(self.config.model.node_feat_types,
+                                                       config=self.config)  # .to(self.device)
+                G_parent.batch = torch.zeros([G_parent.num_nodes], device=G_parent.edge_index.device,
+                                             dtype=G_parent.edge_index.dtype)
+                G_parent.edge_index_batch = torch.zeros([G_parent.num_edges], device=G_parent.edge_index.device,
+                                                        dtype=G_parent.edge_index.dtype)
                 G_parent.ptr = torch.tensor([0, G_parent.num_nodes], device=self.device)
                 G_parent.num_graphs = 1
                 G_parent = self.gnn_parent_mdl(G_parent, G_parent=None, parent_features=None)
@@ -239,7 +243,7 @@ class Conditional_Graph_Gen(nn.Module):
                         no_self_edge=self.no_self_edge,
                         ord_=0, l_=self.level,
                         edge_feat_dim=self.config.model.edge_feat_dim,
-                        max_num_nodes = self.max_num_nodes,
+                        max_num_nodes=self.max_num_nodes,
                         config=self.config,
                         child_bipart=[],
                         child_part=[],
@@ -262,11 +266,12 @@ class Conditional_Graph_Gen(nn.Module):
 
                 g_batch = HigenData.batch_from_list_parts(
                     g_batch_set,
-                    exclude_keys=['edge_attr_keys_extra', 'node_attr_keys_extra', 'child_bipart', 'child_part', 'node_feat_PESE_names']
+                    exclude_keys=['edge_attr_keys_extra', 'node_attr_keys_extra', 'child_bipart', 'child_part',
+                                  'node_feat_PESE_names']
                 ).to(self.device)
 
                 # get augmented parts features and loss
-                g_batch = self.gnn_aug_part(g_batch, G_parent=G_parent, parent_features=None, is_aug_part = True)
+                g_batch = self.gnn_aug_part(g_batch, G_parent=G_parent, parent_features=None, is_aug_part=True)
                 g_batch_set = self.link_pred_part.get_loss_gen_part(g_batch, parent_graph=G_parent, to_gen=True)
 
                 for g_aug in g_batch_set:
@@ -277,10 +282,10 @@ class Conditional_Graph_Gen(nn.Module):
             ## to remove isolated nodes
             if 'mix_Bernouli' in self.dist_part and not 'Connected' in self.link_pred_part.gen_completion_part:
                 for part_ in G_parent.child_part:
-                    del (part_.x) # part_.edge_feat,
+                    del (part_.x)  # part_.edge_feat,
                     part_.edge_index, part_.edge_weight, mask = pyg.utils.remove_isolated_nodes(
                         part_.edge_index, part_.edge_weight, num_nodes=part_.num_nodes)
-                    if mask.sum().item() == 0: # it should have one node at least
+                    if mask.sum().item() == 0:  # it should have one node at least
                         mask[0] = 1
                     part_.num_nodes = mask.sum().item()
                     part_.parent_node_id = part_.parent_node_id[mask]
@@ -301,9 +306,9 @@ class Conditional_Graph_Gen(nn.Module):
                     continue
 
                 bipart_ = Bipart(
-                    edge_index = torch.tensor([[], []], dtype=torch.long, device=self.device),
-                    edge_weight = torch.tensor([], dtype=torch.long, device=self.device),
-                    edge_feat = torch.zeros([0, self.config.model.edge_feat_dim], device=self.device), # todo: not used
+                    edge_index=torch.tensor([[], []], dtype=torch.long, device=self.device),
+                    edge_weight=torch.tensor([], dtype=torch.long, device=self.device),
+                    edge_feat=torch.zeros([0, self.config.model.edge_feat_dim], device=self.device),  # todo: not used
                     part_left=G_parent.child_part[G_parent.edge_index[0, bp_id]],
                     part_right=G_parent.child_part[G_parent.edge_index[1, bp_id]],
                     child_bipart=[],
@@ -368,7 +373,7 @@ class Conditional_Graph_Gen(nn.Module):
                     )
                     bipart_ls = []
                     for bp_id in ord_:
-                        if (G_parent.edge_index[0, bp_id] <= G_parent.edge_index[1, bp_id]):
+                        if G_parent.edge_index[0, bp_id] <= G_parent.edge_index[1, bp_id]:
                             continue
 
                         edge_ = (G_parent.edge_index[0, bp_id].item(), G_parent.edge_index[1, bp_id].item())
@@ -413,13 +418,15 @@ class Conditional_Graph_Gen(nn.Module):
                         G_parent.child_bipart[bp_id].edge_weight = bipart_aug.edge_weight_bp
 
                         bp_t_id = torch.where(
-                            (G_parent.edge_index.t() == torch.flip(G_parent.edge_index[:, bp_id], dims=(0,))).all(dim=1))[0][0]
+                            (G_parent.edge_index.t() == torch.flip(G_parent.edge_index[:, bp_id], dims=(0,))).all(
+                                dim=1))[0][0]
                         G_parent.child_bipart[bp_t_id].edge_index = torch.flip(bipart_aug.edge_index_bp, dims=(0,))
                         G_parent.child_bipart[bp_t_id].edge_weight = bipart_aug.edge_weight_bp
 
                     g_level = collate_partitions(level=self.level,
                                                  part_ls=G_parent.child_part,
-                                                 bipart_ls=[child_bp_ for child_bp_ in G_parent.child_bipart if not child_bp_ is None],
+                                                 bipart_ls=[child_bp_ for child_bp_ in G_parent.child_bipart if
+                                                            not child_bp_ is None],
                                                  device=self.device, add_edge_feat=False)
                     # g_level = bipart_aug
 
@@ -456,7 +463,7 @@ class Edge_Link_Prediction(nn.Module):
         self.to_model_selfedge = False if self.no_self_edge else config.model.get('model_selfedge', True)
         ## is_connected_graph: is used to ensure connecetd graph generation.
         ## if is_connected_graph==1 then an edge in each cutset is reserved so that cutset_weight >= 1
-        self.is_connected_graph = int( config.model.get("is_connected_graph",1) )
+        self.is_connected_graph = int(config.model.get("is_connected_graph", 1))
         self.postMixBP = config.model.get('postMixBP', False)
 
         self.num_mix_component = config.model.num_mix_component if 'mix' in self.dist else 1
@@ -467,9 +474,9 @@ class Edge_Link_Prediction(nn.Module):
         self.batch_size_ts = config.test.batch_size
 
         _gen_completion = self.config.model.gen_completion.split('_')
-        self.gen_completion_part =  _gen_completion[0]
-        self.gen_completion_bipart = _gen_completion[1] if len(_gen_completion)>1 else None
-        _gen_sampling = _gen_completion[2] if len(_gen_completion)>2 else 'mode'
+        self.gen_completion_part = _gen_completion[0]
+        self.gen_completion_bipart = _gen_completion[1] if len(_gen_completion) > 1 else None
+        _gen_sampling = _gen_completion[2] if len(_gen_completion) > 2 else 'mode'
         self._probe_mode = 'mode' in _gen_sampling.lower()
         if self._probe_mode:
             self._n_sample_best = 100
@@ -483,8 +490,8 @@ class Edge_Link_Prediction(nn.Module):
             self.model_theta = Output_Model(
                 hidden_dim=self.hidden_dim,
                 out_dim=self.output_dim * self.num_mix_component,
-                n_layers = 3,
-                gate = nn.ReLU(),
+                n_layers=3,
+                gate=nn.ReLU(),
                 model_type='split',
                 device=self.config.device,
             )
@@ -492,8 +499,8 @@ class Edge_Link_Prediction(nn.Module):
             self.model_alpha = Output_Model(
                 hidden_dim=self.hidden_dim,
                 out_dim=self.num_mix_component,
-                n_layers = 3,
-                gate = nn.ReLU(),
+                n_layers=3,
+                gate=nn.ReLU(),
                 model_type='simple',
                 device=self.config.device,
             )
@@ -501,7 +508,7 @@ class Edge_Link_Prediction(nn.Module):
             self.add_module("output_theta", self.model_theta)
             self.add_module("output_alpha", self.model_alpha)
 
-        elif self.dist =='mix_multinomial':
+        elif self.dist == 'mix_multinomial':
             self.model_linkpred = Link_Prediction_Model(config, level)
             self.add_module("model_linkpred", self.model_linkpred)
 
@@ -588,7 +595,8 @@ class Edge_Link_Prediction(nn.Module):
         stat2_per_augEdge = torch.unsqueeze(g_batch.cutset_weight[g_batch.edge_index_aug_batch], dim=1)
 
         h_parent_per_augGraph = parent_graph.x[g_batch.part_id, :]
-        context_augGraph = torch.stack([g_batch.remaining_weight, g_batch.all_weight, g_batch.num_nodes_aug_graph], dim=1)
+        context_augGraph = torch.stack([g_batch.remaining_weight, g_batch.all_weight, g_batch.num_nodes_aug_graph],
+                                       dim=1)
         h_parent_per_augGraph = torch.cat([h_parent_per_augGraph, context_augGraph], dim=1)
 
         return h_parent_per_augEdge, stat_per_augEdge, stat2_per_augEdge, h_parent_per_augGraph
@@ -627,7 +635,7 @@ class Edge_Link_Prediction(nn.Module):
                     mode='cat')(g_batch.x, ptr=ptr_)
 
             if self.link_cntx_type.lower() in ['cat62', 'cat63', 'cat64', 'cat65', 'cat66',
-                                                'cat72', 'cat73', 'cat74', 'cat75', 'cat76']:
+                                               'cat72', 'cat73', 'cat74', 'cat75', 'cat76']:
                 # to concatenate the parent node attr
                 graph_aug_attr = torch.cat([graph_aug_attr, h_parent_per_augGraph], dim=-1)
 
@@ -788,7 +796,7 @@ class Edge_Link_Prediction(nn.Module):
                         g_aug.is_completed = True if Adj_uper.sum() > g_aug.all_weight else False
                         if g_aug.num_nodes >= g_aug.max_num_nodes:
                             g_aug.is_completed = True
-                            if self._verbose >=2:
+                            if self._verbose >= 2:
                                 print(f"part generation is terminated @ {g_aug.num_nodes} nodes "
                                       f"out of {self.config.model.stat_HG_pmf.max_num_nodes_part[self.level]}, "
                                       f"max pre_sampled num_nodes: {g_aug.max_num_nodes}")
@@ -805,8 +813,8 @@ class Edge_Link_Prediction(nn.Module):
                     elif 'NumEdges' in self.gen_completion_part:
                         g_aug.is_completed = True if Adj_uper.sum() > g_aug.all_weight else False
 
-                    elif ('NumNodes' in self.gen_completion_part):
-                        g_aug.is_completed = True  if (g_aug.num_nodes >= g_aug.max_num_nodes) else False
+                    elif 'NumNodes' in self.gen_completion_part:
+                        g_aug.is_completed = True if (g_aug.num_nodes >= g_aug.max_num_nodes) else False
 
                     Adj_sp = Adj.to_sparse().coalesce()
                     g_aug.edge_index = Adj_sp.indices().long()
@@ -820,8 +828,8 @@ class Edge_Link_Prediction(nn.Module):
                 link_aug_attr, graph_aug_attr, link_aug_cntx,
                 g_batch=g_batch,
                 alpha_level=alpha_level,
-                link_attr_bn_level = link_attr_bn_level,
-                is_bipart = False,
+                link_attr_bn_level=link_attr_bn_level,
+                is_bipart=False,
                 to_cache_out_NN=to_gen, use_cache_out_NN=False,
             )
 
@@ -845,7 +853,7 @@ class Edge_Link_Prediction(nn.Module):
             else:
 
                 g_aug_set = Batch.to_data_list(g_batch)
-                alpha_ls = [None]*len(g_aug_set)
+                alpha_ls = [None] * len(g_aug_set)
                 # to sample the cutset + self weight
                 for i_g, g_aug in enumerate(g_aug_set):
                     g_aug.is_completed = False if g_aug.remaining_weight >= 0 else True
@@ -870,11 +878,11 @@ class Edge_Link_Prediction(nn.Module):
                     link_aug_attr, graph_aug_attr, link_aug_cntx,
                     g_batch,
                     alpha_level=alpha_level,
-                    link_attr_bn_level= link_attr_bn_level,
-                    is_bipart = False,
+                    link_attr_bn_level=link_attr_bn_level,
+                    is_bipart=False,
                     to_cache_out_NN=False, use_cache_out_NN=True
                 )
-                Adj_pred_sp_ls = [None]*len(g_aug_set)
+                Adj_pred_sp_ls = [None] * len(g_aug_set)
                 for i_g, g_aug in enumerate(g_aug_set):
                     if g_aug.is_completed:
                         continue
@@ -902,15 +910,14 @@ class Edge_Link_Prediction(nn.Module):
                     g_batch.cutset_weight[i_g] = g_aug.cutset_weight
                     g_batch.self_weight[i_g] = g_aug.self_weight
 
-
                 # to sample the weights of the cross edge (all edges except self edge)
                 ## to re-calculate the outputs with cutset_weight
                 (_, _), theta_mn, log_alpha, is_logit_bn, is_logit_mn = self.model_linkpred.forward(
                     link_aug_attr, graph_aug_attr, link_aug_cntx,
                     g_batch,
                     alpha_level=alpha_level,
-                    link_attr_bn_level= link_attr_bn_level,
-                    is_bipart = False,
+                    link_attr_bn_level=link_attr_bn_level,
+                    is_bipart=False,
                     to_cache_out_NN=False, use_cache_out_NN=True
                 )
                 for i_g, g_aug in enumerate(g_aug_set):
@@ -924,7 +931,9 @@ class Edge_Link_Prediction(nn.Module):
                         theta_mn_ = theta_mn.permute([1, 0, 2])[i_g, :, alpha]
                         _prob_edges = self.model_linkpred.get_edge_prob(theta_mn_, dim=0, is_logit_mn=is_logit_mn)
                         if ('NumLeaf' in self.gen_completion_part) and self.is_leaf_level:
-                            _, nonzero_ind = torch.topk(_prob_edges, min(int(g_aug.cutset_weight.item()), len(_prob_edges)), sorted=False)
+                            _, nonzero_ind = torch.topk(_prob_edges,
+                                                        min(int(g_aug.cutset_weight.item()), len(_prob_edges)),
+                                                        sorted=False)
                             edge_val_pred = torch.zeros_like(_prob_edges)
                             edge_val_pred[nonzero_ind] = 1.
                         else:
@@ -942,7 +951,7 @@ class Edge_Link_Prediction(nn.Module):
                     Adj_uper = torch.tril(Adj, diagonal=-1)
                     Adj_uper = Adj_uper.transpose(1, 0)
                     Adj_lower = torch.tril(Adj, diagonal=-1 if self.no_self_edge else 0)
-                    Adj = Adj_lower + Adj_uper   # to obtain a symmetric adj matrix
+                    Adj = Adj_lower + Adj_uper  # to obtain a symmetric adj matrix
 
                     Adj_sp = Adj.to_sparse().coalesce()
                     g_aug.edge_index = Adj_sp.indices().long()
@@ -977,16 +986,18 @@ class Edge_Link_Prediction(nn.Module):
 
         edge_index_aug = bp_batch.edge_index_aug
         edge_index_parent_aug = [bp_batch.parent_node_id[bp_batch.edge_index_aug[0, :]],
-                                 bp_batch.parent_node_id[bp_batch.edge_index_aug[1, :]] ]
+                                 bp_batch.parent_node_id[bp_batch.edge_index_aug[1, :]]]
 
         if bp_batch.get('computed_edge_feat', False):
             h_edges_aug = bp_batch.edge_feat_aug
         else:
-            h_edges_aug = self.node2edge_attr(bp_batch.x[edge_index_aug[0, :], :], bp_batch.x[edge_index_aug[1, :], :], is_bp=True)
+            h_edges_aug = self.node2edge_attr(bp_batch.x[edge_index_aug[0, :], :], bp_batch.x[edge_index_aug[1, :], :],
+                                              is_bp=True)
 
         if parent_graph.get('computed_edge_feat', False):
             temp = pyg.utils.to_dense_adj(parent_graph.edge_index,
-                                          edge_attr=torch.arange(parent_graph.edge_index.shape[1], device=parent_graph.edge_index.device))[0]
+                                          edge_attr=torch.arange(parent_graph.edge_index.shape[1],
+                                                                 device=parent_graph.edge_index.device))[0]
             id_parent_edge = temp[edge_index_parent_aug[0], edge_index_parent_aug[1]]
             h_parent_edge = parent_graph.edge_feat[id_parent_edge, :]
 
@@ -995,7 +1006,7 @@ class Edge_Link_Prediction(nn.Module):
                                                 parent_graph.x[edge_index_parent_aug[1], :], is_bp=True)
 
         h_extra_aug = bp_batch.edge_weight_aug
-        h_extra_bps = bp_batch.edge_weight_aug[bp_batch.num_aug_edges.cumsum(dim=0)-1]
+        h_extra_bps = bp_batch.edge_weight_aug[bp_batch.num_aug_edges.cumsum(dim=0) - 1]
         bp_batch.cutset_weight = h_extra_bps
         if not self.has_edge_weight:
             h_extra_aug = torch.zeros_like(h_extra_aug)
@@ -1027,7 +1038,8 @@ class Edge_Link_Prediction(nn.Module):
             link_attr = torch.cat([h_edges_aug, h_parent_edge, h_extra_aug], dim=1)
             if self.link_cntx_type_bp.lower() == 'cat32':
                 batch_aug_edge_ = torch.repeat_interleave(
-                    torch.arange(len(bp_batch.num_aug_edges), device=bp_batch.num_aug_edges.device, dtype=bp_batch.num_aug_edges.dtype),
+                    torch.arange(len(bp_batch.num_aug_edges), device=bp_batch.num_aug_edges.device,
+                                 dtype=bp_batch.num_aug_edges.dtype),
                     bp_batch.num_aug_edges
                 )
                 bp_aug_attr = pyg.nn.global_mean_pool(h_edges_aug, batch=batch_aug_edge_)
@@ -1036,7 +1048,8 @@ class Edge_Link_Prediction(nn.Module):
                 bp_aug_attr = torch.cat([bp_aug_attr, h_parent_edge[ptr_[:-1]], h_extra_bps], dim=1)
                 alpha_level = 'graph'
             if self.link_cntx_type_bp.lower() == 'cat33':
-                ptr_ = torch.cat([torch.tensor([0], device=bp_batch.num_aug_edges.device), bp_batch.num_aug_edges.cumsum(dim=0)])
+                ptr_ = torch.cat(
+                    [torch.tensor([0], device=bp_batch.num_aug_edges.device), bp_batch.num_aug_edges.cumsum(dim=0)])
                 bp_aug_attr = pyg.nn.aggr.MultiAggregation(
                     aggrs=['mean', 'max', 'min', 'std'], mode='cat')(h_edges_aug, ptr=ptr_)
                 bp_aug_attr = torch.cat([bp_aug_attr, h_parent_edge[ptr_[:-1]], h_extra_bps], dim=1)
@@ -1059,8 +1072,9 @@ class Edge_Link_Prediction(nn.Module):
             if to_train:
                 if self.dist == 'mix_Bernouli':
                     _split_lengths = list(bp_batch.num_aug_edges.cpu().numpy())
-                    _mask = split_then_pad(torch.ones([bp_batch.edge_index_aug_batch.shape[0]], device=log_theta.device),
-                                           split_lengths=_split_lengths, value=.0)
+                    _mask = split_then_pad(
+                        torch.ones([bp_batch.edge_index_aug_batch.shape[0]], device=log_theta.device),
+                        split_lengths=_split_lengths, value=.0)
                     label_bps = split_then_pad(bp_batch.label,
                                                split_lengths=_split_lengths, value=.0).t().type_as(bp_batch.label)
                     log_theta = torch.clamp(log_theta, min=torch.tensor(-1e6, device=log_theta.device),
@@ -1090,16 +1104,16 @@ class Edge_Link_Prediction(nn.Module):
 
             else:
                 # To generate the edges of bipart graphs
-                assert self.config.test.batch_size == 1 # not implemented for larger batch_size
+                assert self.config.test.batch_size == 1  # not implemented for larger batch_size
                 bp_aug = bp_batch
 
                 aug_edge_end_ls = bp_aug.num_aug_edges.cumsum(dim=0)
                 ## second half of the edge_index_aug are transpose of the first half since the graph is undirected
-                aug_edge_end_ls = aug_edge_end_ls[:len(aug_edge_end_ls)//2]
+                aug_edge_end_ls = aug_edge_end_ls[:len(aug_edge_end_ls) // 2]
                 edge_index_ls = [bp_aug.edge_index]
                 edge_weight_ls = [bp_aug.edge_weight]
                 for i_bp, _end in enumerate(aug_edge_end_ls):
-                    _start = aug_edge_end_ls[i_bp - 1] if i_bp > 0  else 0
+                    _start = aug_edge_end_ls[i_bp - 1] if i_bp > 0 else 0
                     log_theta_bp = log_theta[:bp_aug.num_aug_edges[i_bp], i_bp, :]
                     edge_index_aug_bp = bp_aug.edge_index_aug[:, _start: _end]
                     if not self.postMixBP:
@@ -1142,8 +1156,8 @@ class Edge_Link_Prediction(nn.Module):
             _, theta_mn, log_alpha, _, is_logit_mn = self.model_linkpred.forward(
                 link_attr, graph_attr=bp_aug_attr,
                 g_batch=bp_batch, link_cntx=bp_cntx,
-                alpha_level=alpha_level, link_attr_bn_level= None,
-                is_bipart = True, cat_cntx=False,
+                alpha_level=alpha_level, link_attr_bn_level=None,
+                is_bipart=True, cat_cntx=False,
             )
             theta_mn = theta_mn.permute([1, 2, 0])
 
@@ -1153,14 +1167,15 @@ class Edge_Link_Prediction(nn.Module):
             if to_train:
                 _split_lengths = list(bp_batch.num_aug_edges.cpu().numpy())
                 _mask = split_then_pad(torch.ones([bp_batch.edge_index_aug_batch.shape[0]], device=theta_mn.device),
-                                      split_lengths=_split_lengths, value=.0).t()
+                                       split_lengths=_split_lengths, value=.0).t()
                 NLL_sampled_biparts_allmix = get_nll_multinomial(
                     theta_mn,
-                    target=split_then_pad(bp_batch.label, split_lengths=_split_lengths, value=.0).t().type_as(bp_batch.label),
+                    target=split_then_pad(bp_batch.label, split_lengths=_split_lengths, value=.0).t().type_as(
+                        bp_batch.label),
                     n_trials=bp_batch.cutset_weight,
                     reduction='none',
                     mask=_mask,
-                    num_mix=self.num_mix_component
+                    # num_mix=self.num_mix_component
                 )
 
                 if not self.postMixBP:
@@ -1171,7 +1186,8 @@ class Edge_Link_Prediction(nn.Module):
                         alpha_level='graph',
                         split_lengths=_split_lengths)
                 else:
-                    NLL_sampled_biparts_allmix = pyg.nn.global_add_pool(NLL_sampled_biparts_allmix, batch=bp_batch.num_aug_edges_batch)
+                    NLL_sampled_biparts_allmix = pyg.nn.global_add_pool(NLL_sampled_biparts_allmix,
+                                                                        batch=bp_batch.num_aug_edges_batch)
                     NLL_sampled_biparts = get_mixture_nll(
                         nlls=NLL_sampled_biparts_allmix, log_alpha=log_alpha,
                         num_aug_edges=None,
@@ -1185,16 +1201,16 @@ class Edge_Link_Prediction(nn.Module):
 
             else:
                 # To generate the edges of bipart graphs
-                assert self.config.test.batch_size == 1 # not implemented for larger batch_size
+                assert self.config.test.batch_size == 1  # not implemented for larger batch_size
                 bp_aug = bp_batch
 
                 _split_lengths = list(bp_batch.num_aug_edges.cpu().numpy())
                 _mask = split_then_pad(torch.ones([bp_batch.edge_index_aug.shape[1]]),
-                                      split_lengths=_split_lengths, value=0).t().type(torch.bool)
+                                       split_lengths=_split_lengths, value=0).t().type(torch.bool)
 
                 aug_edge_end_ls = bp_aug.num_aug_edges.cumsum(dim=0)
                 # second half of the edge_index_aug are transpose of the first half since the graph is undirected
-                aug_edge_end_ls = aug_edge_end_ls[:len(aug_edge_end_ls)//2]
+                aug_edge_end_ls = aug_edge_end_ls[:len(aug_edge_end_ls) // 2]
                 edge_index_ls = [bp_aug.edge_index]
                 edge_weight_ls = [bp_aug.edge_weight]
                 for i_bp, _end in enumerate(aug_edge_end_ls):
@@ -1210,13 +1226,15 @@ class Edge_Link_Prediction(nn.Module):
 
                     if ('NumLeaf' in self.gen_completion_bipart) and self.is_leaf_level:
                         _, nonzero_ind = torch.topk(prob_edges,
-                                               min(int(bp_aug.cutset_weight[i_bp].item()), len(prob_edges)), sorted=False)
+                                                    min(int(bp_aug.cutset_weight[i_bp].item()), len(prob_edges)),
+                                                    sorted=False)
                         pred_edges_values = torch.zeros_like(prob_edges)
                         pred_edges_values[nonzero_ind] = 1.
                     else:
-                        pred_edges_values = multinomial_sampler(total_count=bp_aug.cutset_weight[i_bp], probs=prob_edges,
+                        pred_edges_values = multinomial_sampler(total_count=bp_aug.cutset_weight[i_bp],
+                                                                probs=prob_edges,
                                                                 mode=self._probe_mode, n_sample=self._n_sample_best)
-                        if pred_edges_values.dim() == 0: # to prevent the error if it is a scalar
+                        if pred_edges_values.dim() == 0:  # to prevent the error if it is a scalar
                             pred_edges_values = pred_edges_values.unsqueeze(0)
 
                         nonzero_ind = pred_edges_values.nonzero().squeeze(dim=1)
@@ -1341,7 +1359,7 @@ class Link_Prediction_Model(nn.Module):
         elif self.model_type_mn == 'm11':
             denom = (1 + torch.nn.Softplus()(theta_cntx_[:, -5]))
             theta_mn = theta_mn_ / denom.unsqueeze(1).unsqueeze(0)
-        elif self.model_type_mn =='m12':
+        elif self.model_type_mn == 'm12':
             weight_ = (1 + torch.nn.Softplus()(theta_cntx_[:, -5])) / ((g_batch.cutset_weight + 1.).log() + 1.)
             theta_mn = theta_mn_ * weight_.unsqueeze(1).unsqueeze(0)
         elif self.model_type_mn in ['m14', 'm142']:
@@ -1363,7 +1381,7 @@ class Link_Prediction_Model(nn.Module):
 
         theta_self = None
         if not use_cache_out_NN:
-            log_alpha = self.output_alpha(graph_attr) if 'graph' in alpha_level  else self.output_alpha(link_attr)
+            log_alpha = self.output_alpha(graph_attr) if 'graph' in alpha_level else self.output_alpha(link_attr)
             if alpha_level == 'edge':
                 log_alpha = get_reduced_attr(log_alpha, scatter_index=g_batch.edge_index_aug_batch,
                                              num_graphs=g_batch.num_aug_edges.shape[0],
@@ -1374,14 +1392,15 @@ class Link_Prediction_Model(nn.Module):
                     graph_attr = torch.cat([graph_attr, theta_cntx_[:, :self.output_dim_cntx1], link_cntx], dim=-1)
                 else:
                     graph_attr = torch.cat([graph_attr, theta_cntx_[:, :self.output_dim_cntx1]], dim=-1)
-            theta_bn_ = self.output_bn(graph_attr) if 'graph' in link_attr_bn_level  else self.output_bn(link_attr)
+            theta_bn_ = self.output_bn(graph_attr) if 'graph' in link_attr_bn_level else self.output_bn(link_attr)
             theta_bn_, theta_self_ = theta_bn_[:, :self.num_mix_component], theta_bn_[:, self.num_mix_component:]
 
             if link_attr_bn_level == 'edge':
                 theta_bn_ = get_reduced_attr(theta_bn_, scatter_index=g_batch.edge_index_aug_batch,
                                              num_graphs=g_batch.num_aug_edges.shape[0], get_average=False)
                 theta_self_ = get_reduced_attr(theta_self_, scatter_index=g_batch.edge_index_aug_batch,
-                                               num_graphs=g_batch.num_aug_edges.shape[0], num_edges=g_batch.num_aug_edges,
+                                               num_graphs=g_batch.num_aug_edges.shape[0],
+                                               num_edges=g_batch.num_aug_edges,
                                                get_average=True)
 
         else:
@@ -1421,5 +1440,3 @@ class Link_Prediction_Model(nn.Module):
                     1 + torch.nn.Softplus()(theta_cntx_[:, -4]).unsqueeze(-1)))
 
         return (theta_bn, theta_self), theta_mn, log_alpha, is_logit_bn, is_logit_mn
-
-

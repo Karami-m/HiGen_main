@@ -61,7 +61,7 @@ def parse_arguments(command_str=None):
     return args
 
 
-# register_act('relu', nn.ReLU)
+register_act('relu', nn.ReLU)
 
 pe_encoder_setting_dict = {
     'LapPE': 'posenc_LapPE',
