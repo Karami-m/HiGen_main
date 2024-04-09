@@ -15,9 +15,9 @@ from tensorboardX import SummaryWriter
 torch.multiprocessing.set_sharing_strategy('file_system')
 
 from utils.higen_data import *
+from utils.dataset.dataset_preprocessing import *
 from utils.logger import get_logger
 from utils.train_helper import snapshot, load_model
-from utils.eval_helper import *
 from utils.vis_helper import draw_HG_list_separate
 from utils.graph_helper import *
 
@@ -70,7 +70,7 @@ class HiGeN_Runner(object):
 
         ## to load and save graphs
         if self.dataset_conf.is_overwrite_precompute:
-            _graphs0 = create_graphs_multilevel(
+            _graphs0 = get_multilevel_graph_dataset(
                 config.dataset.name,
                 node_orders=self.dataset_conf.node_order,
                 data_dir=config.dataset.data_path,

@@ -8,7 +8,7 @@ dataset:
   loader_name: higen_data
   name: Ego2
   num_levels: 2
-  coarsening_alg:  Louvain    # SC0
+  coarsening_alg:  Louvain    # SC0 (Spectral Clustering), Louvain
   level_startFromRoot: false
   data_path: data/
   node_order: BFSDC           # DFS # BFS/ BFSAC/BFSDC

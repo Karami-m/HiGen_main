@@ -11,8 +11,8 @@ Moreover, we model the output distribution of edges in the hierarchical graph wi
 This enables us to generate  community graphs with integer-valued edge weights in an autoregressive manner.
 Empirical studies demonstrate the effectiveness and scalability of our proposed generative model, achieving state-of-the-art performance in terms of graph quality across various benchmark datasets.
 
-In this implementation, the codes of [GraphGPS model](https://github.com/rampasek/GraphGPS) are adapted and used in this work.
-I also used the structure based metrics in [GRAN](https://github.com/lrjconan/GRAN), and GNN based metrics [GGM-metrics](https://github.com/uoguelph-mlrg/GGM-metrics) for evaluation of the generated graph samples.
+This implementation adapts and used the codes of the [GraphGPS model](https://github.com/rampasek/GraphGPS) in this work.
+Additionally, the structure-based metrics from [GRAN](https://github.com/lrjconan/GRAN) and the GNN-based metrics from [GGM-metrics](https://github.com/uoguelph-mlrg/GGM-metrics) are employed for evaluating the generated graph samples.
 
 ## Usage
 **TRAIN**
@@ -21,6 +21,10 @@ To train the model, simply run:
 
 For more specific training, run the following scripts
 - ```python main.py -c configs/higen_Enz.yaml --hp dist=mix_multinomial+PartBern,layer_type_gps=CustomGatedGCN+BiasedTransformer```
+
+**Dataset Preprocessing**
+
+To train on a new dataset, the code first needs to perform graph coarsening to create hierarchical graphs (HGs) from a raw graph dataset in NetworkX. The current version includes Spectral Clustering (SC). To use SC for coarsening, set `dataset.coarsening_alg=SC0` and `dataset.is_overwrite_precompute=true` in the yaml file.
 
 ## Dependencies
 This package is mainly built upon:
@@ -37,11 +41,11 @@ Datasets should be unzipped to directory: `data`
 
 | |  | |
 | :---: | :---: | :---: |
-|<img width="200" alt="HG_L2" src="https://github.com/Karami-m/HiGen_main/assets/17184202/3e71a00e-9089-4176-886f-9b8411b6efce">  | <img width="400" alt="Comm_gen" src="https://github.com/Karami-m/HiGen_main/assets/17184202/fe12a1ef-efa1-4963-837c-26ddc55c16ce">| <img width="400" alt="BP_gen" src="https://github.com/Karami-m/HiGen_main/assets/17184202/21f73184-da85-4c31-bc8e-dd84e63db01a">|
+|<img width="200" alt="HG_L2" src="_img/HG_L2.png">  | <img width="400" alt="Comm_gen" src="_img/Comm_gen.png">| <img width="400" alt="BP_gen" src="_img/BP_gen.png">|
 
 | |  |
 | :---: | :---: |
-|<img width="400" alt="Comm_AR" src="https://github.com/Karami-m/HiGen_main/assets/17184202/6736e47e-e183-49c1-a655-878b5df91965">	| <img width="200" alt="mnbn" src="https://github.com/Karami-m/HiGen_main/assets/17184202/8257f125-5b85-4174-9520-a17c02dc88b1"> |
+|<img width="400" alt="Comm_AR" src="_img/Comm_AR.png">	| <img width="200" alt="mnbn" src="_img/mnbn.png"> |
 
 ## Cite
 To cite this [paper](https://arxiv.org/abs/2305.19337):.
